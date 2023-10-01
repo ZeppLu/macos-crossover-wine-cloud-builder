@@ -86,7 +86,8 @@ export PATH="/usr/local/opt/flex/bin:$PATH"
 # this causes wine(64) builds to fail so needs to be disabled.
 # https://developer.apple.com/documentation/xcode-release-notes/xcode-12-release-notes
 export CFLAGS="-g -O2 -Wno-error=implicit-function-declaration -Wno-deprecated-declarations"
-export LDFLAGS="-Wl,-headerpad_max_install_names, -Wl,-no_compact_unwind"
+export LDFLAGS="-Wl,-headerpad_max_install_names"
+# export LDFLAGS="-Wl,-headerpad_max_install_names, -Wl,-no_compact_unwind"
 
 # avoid weird linker errors with Xcode 10 and later
 export MACOSX_DEPLOYMENT_TARGET=10.14
@@ -98,23 +99,25 @@ export SDL2_CFLAGS="-I$(brew --prefix sdl2)/include -I$(brew --prefix sdl2)/incl
 export ac_cv_lib_soname_MoltenVK="libMoltenVK.dylib"
 export ac_cv_lib_soname_vulkan=""
 
-begingroup "Download & extracting source"
-if [[ ! -f ${CROSS_OVER_LOCAL_FILE}.tar.gz ]]; then
-    curl -o ${CROSS_OVER_LOCAL_FILE}.tar.gz ${CROSS_OVER_SOURCE_URL}
+if [[ -z ${SKIP_DOWNLOAD_SOURCES} ]]; then
+    begingroup "Download & extracting source"
+    if [[ ! -f ${CROSS_OVER_LOCAL_FILE}.tar.gz ]]; then
+        curl -o ${CROSS_OVER_LOCAL_FILE}.tar.gz ${CROSS_OVER_SOURCE_URL}
+    fi
+
+    if [[ -d "${GITHUB_WORKSPACE}/sources" ]]; then
+        rm -rf ${GITHUB_WORKSPACE}/sources
+    fi
+    tar xf ${CROSS_OVER_LOCAL_FILE}.tar.gz
+    endgroup
 fi
 
-if [[ -d "${GITHUB_WORKSPACE}/sources" ]]; then
-    rm -rf ${GITHUB_WORKSPACE}/sources
-fi
-tar xf ${CROSS_OVER_LOCAL_FILE}.tar.gz
-endgroup
-
-begingroup "Patch Add missing distversion.h"
-# Patch provided by Josh Dubois, CrossOver product manager, CodeWeavers.
-pushd sources/wine
-patch -p1 <${GITHUB_WORKSPACE}/distversion.patch
-popd
-endgroup
+# begingroup "Patch Add missing distversion.h"
+# # Patch provided by Josh Dubois, CrossOver product manager, CodeWeavers.
+# pushd sources/wine
+# patch -p1 <${GITHUB_WORKSPACE}/distversion.patch
+# popd
+# endgroup
 
 if [[ ${CROSS_OVER_VERSION} == 22.0.0 ]]; then
     pushd sources/wine
@@ -137,138 +140,156 @@ if [[ ${CX_MAJOR} == 20 ]]; then
     endgroup
 fi
 
-# if [[ ${CX_MAJOR} -ge 21 ]]; then
-#     if [[ ! -f "${PACKAGE_UPLOAD}/${DXVK_INSTALLATION}.tar.gz" ]]; then
-#         begingroup "Applying patches to DXVK"
-#         pushd sources/dxvk
-#         patch -p1 <${GITHUB_WORKSPACE}/0001-build-macOS-Fix-up-for-macOS.patch
-#         patch -p1 <${GITHUB_WORKSPACE}/0002-fix-d3d11-header-for-MinGW-9-1883.patch
-#         patch -p1 <${GITHUB_WORKSPACE}/0003-fixes-for-mingw-gcc-12.patch
-#         popd
-#         endgroup
+if [[ -z ${SKIP_DXVK} ]]; then
+    if [[ ${CX_MAJOR} -ge 21 ]]; then
+        if [[ ! -f "${PACKAGE_UPLOAD}/${DXVK_INSTALLATION}.tar.gz" ]]; then
+            begingroup "Applying patches to DXVK"
+            pushd sources/dxvk
+            patch -p1 <${GITHUB_WORKSPACE}/0001-build-macOS-Fix-up-for-macOS.patch
+            # patch -p1 <${GITHUB_WORKSPACE}/0002-fix-d3d11-header-for-MinGW-9-1883.patch # already applied
+            patch -p1 <${GITHUB_WORKSPACE}/0003-fixes-for-mingw-gcc-12.patch
+            patch -p1 <${GITHUB_WORKSPACE}/0004-fixes-for-dxvk.patch
+            popd
+            endgroup
 
-#         begingroup "Installing dependencies for DXVK"
-#         brew install \
-#             meson \
-#             glslang
-#         endgroup
+            begingroup "Installing dependencies for DXVK"
+            brew install \
+                meson \
+                glslang
+            endgroup
 
-#         begingroup "Build DXVK"
-#         ${DXVK_BUILDSCRIPT} master ${INSTALLROOT}/${DXVK_INSTALLATION} --no-package
-#         endgroup
+            begingroup "Build DXVK"
+            ${DXVK_BUILDSCRIPT} master ${INSTALLROOT}/${DXVK_INSTALLATION} --no-package
+            endgroup
 
-#         begingroup "Tar DXVK"
-#         pushd ${INSTALLROOT}
-#         tar -czf ${DXVK_INSTALLATION}.tar.gz ${DXVK_INSTALLATION}
-#         popd
-#         endgroup
+            begingroup "Tar DXVK"
+            pushd ${INSTALLROOT}
+            tar -czf ${DXVK_INSTALLATION}.tar.gz ${DXVK_INSTALLATION}
+            popd
+            endgroup
 
-#         begingroup "Upload DXVK"
-#         mkdir -p ${PACKAGE_UPLOAD}
-#         cp ${INSTALLROOT}/${DXVK_INSTALLATION}.tar.gz ${PACKAGE_UPLOAD}/
-#         endgroup
-#     fi
-# fi
+            begingroup "Upload DXVK"
+            mkdir -p ${PACKAGE_UPLOAD}
+            cp ${INSTALLROOT}/${DXVK_INSTALLATION}.tar.gz ${PACKAGE_UPLOAD}/
+            endgroup
+        fi
+    fi
+fi
+if [[ -z ${SKIP_WINE64} ]]; then
+    if [[ -z ${SKIP_WINE64_CONFIGURE} ]]; then
+        begingroup "Configure wine64-${CROSS_OVER_VERSION}"
+        mkdir -p ${BUILDROOT}/wine64-${CROSS_OVER_VERSION}
+        pushd ${BUILDROOT}/wine64-${CROSS_OVER_VERSION}
+        ${WINE_CONFIGURE} \
+            --disable-option-checking \
+            --enable-win64 \
+            --disable-winedbg \
+            --with-coreaudio \
+            --with-cups \
+            --without-fontconfig \
+            --with-freetype \
+            --disable-tests \
+            --without-alsa \
+            --without-capi \
+            --without-dbus \
+            --without-gettext \
+            --without-gettextpo \
+            --without-gsm \
+            --without-inotify \
+            --without-krb5 \
+            --without-netapi \
+            --without-openal \
+            --without-oss \
+            --without-pulse \
+            --without-quicktime \
+            --without-sane \
+            --without-udev \
+            --without-usb \
+            --without-v4l2 \
+            --without-x
+        popd
+        endgroup
+    fi
 
-begingroup "Configure wine64-${CROSS_OVER_VERSION}"
-mkdir -p ${BUILDROOT}/wine64-${CROSS_OVER_VERSION}
-pushd ${BUILDROOT}/wine64-${CROSS_OVER_VERSION}
-${WINE_CONFIGURE} \
-    --disable-option-checking \
-    --enable-win64 \
-    --disable-winedbg \
-    --with-coreaudio \
-    --with-cups \
-    --without-fontconfig \
-    --with-freetype \
-    --disable-tests \
-    --without-alsa \
-    --without-capi \
-    --without-dbus \
-    --without-gettext \
-    --without-gettextpo \
-    --without-gsm \
-    --without-inotify \
-    --without-krb5 \
-    --without-netapi \
-    --without-openal \
-    --without-oss \
-    --without-pulse \
-    --without-quicktime \
-    --without-sane \
-    --without-udev \
-    --without-usb \
-    --without-v4l2 \
-    --without-x
-popd
-endgroup
+    if [[ -z ${SKIP_WINE64_MAKE} ]]; then
+        begingroup "Build wine64-${CROSS_OVER_VERSION}"
+        pushd ${BUILDROOT}/wine64-${CROSS_OVER_VERSION}
+        make -j$(sysctl -n hw.ncpu 2>/dev/null)
+        popd
+        endgroup
+    fi
 
-begingroup "Build wine64-${CROSS_OVER_VERSION}"
-pushd ${BUILDROOT}/wine64-${CROSS_OVER_VERSION}
-make -j$(sysctl -n hw.ncpu 2>/dev/null)
-popd
-endgroup
+    if [[ -z ${SKIP_WINE64_INSTALL} ]]; then
+        begingroup "Install wine64-${CROSS_OVER_VERSION}"
+        pushd ${BUILDROOT}/wine64-${CROSS_OVER_VERSION}
+        make install-lib DESTDIR="${INSTALLROOT}/${WINE_INSTALLATION}"
+        popd
+        endgroup
+    fi
+fi
 
-begingroup "Configure wine32on64-${CROSS_OVER_VERSION}"
-mkdir -p ${BUILDROOT}/wine32on64-${CROSS_OVER_VERSION}
-pushd ${BUILDROOT}/wine32on64-${CROSS_OVER_VERSION}
-${WINE_CONFIGURE} \
-    --disable-option-checking \
-    --enable-win32on64 \
-    --disable-winedbg \
-    --with-wine64=${BUILDROOT}/wine64-${CROSS_OVER_VERSION} \
-    --with-coreaudio \
-    --with-cups \
-    --without-fontconfig \
-    --with-freetype \
-    --disable-tests \
-    --without-alsa \
-    --without-capi \
-    --without-dbus \
-    --without-gettext \
-    --without-gettextpo \
-    --without-gsm \
-    --without-inotify \
-    --without-krb5 \
-    --without-netapi \
-    --without-openal \
-    --without-oss \
-    --without-pulse \
-    --without-quicktime \
-    --without-sane \
-    --without-udev \
-    --without-usb \
-    --without-v4l2 \
-    --without-x
+if [[ -z ${SKIP_WINE32} ]]; then
+    if [[ -z ${SKIP_WINE32_CONFIGURE} ]]; then
+        begingroup "Configure wine32on64-${CROSS_OVER_VERSION}"
+        mkdir -p ${BUILDROOT}/wine32on64-${CROSS_OVER_VERSION}
+        pushd ${BUILDROOT}/wine32on64-${CROSS_OVER_VERSION}
+        ${WINE_CONFIGURE} \
+            --disable-option-checking \
+            --enable-win32on64 \
+            --disable-winedbg \
+            --with-wine64=${BUILDROOT}/wine64-${CROSS_OVER_VERSION} \
+            --with-coreaudio \
+            --with-cups \
+            --without-fontconfig \
+            --with-freetype \
+            --disable-tests \
+            --without-alsa \
+            --without-capi \
+            --without-dbus \
+            --without-gettext \
+            --without-gettextpo \
+            --without-gsm \
+            --without-inotify \
+            --without-krb5 \
+            --without-netapi \
+            --without-openal \
+            --without-oss \
+            --without-pulse \
+            --without-quicktime \
+            --without-sane \
+            --without-udev \
+            --without-usb \
+            --without-v4l2 \
+            --without-x
 
-popd
-endgroup
-
-begingroup "Build wine32on64-${CROSS_OVER_VERSION}"
-pushd ${BUILDROOT}/wine32on64-${CROSS_OVER_VERSION}
-make -k -j$(sysctl -n hw.activecpu 2>/dev/null)
-popd
-endgroup
-
-begingroup "Install wine32on64-${CROSS_OVER_VERSION}"
-pushd ${BUILDROOT}/wine32on64-${CROSS_OVER_VERSION}
-make install-lib DESTDIR="${INSTALLROOT}/${WINE_INSTALLATION}"
-popd
-endgroup
-
-begingroup "Install wine64-${CROSS_OVER_VERSION}"
-pushd ${BUILDROOT}/wine64-${CROSS_OVER_VERSION}
-make install-lib DESTDIR="${INSTALLROOT}/${WINE_INSTALLATION}"
-popd
-endgroup
-
-begingroup "Tar Wine"
-pushd ${INSTALLROOT}
-tar -czvf ${WINE_INSTALLATION}.tar.gz ${WINE_INSTALLATION}
-popd
-endgroup
-
-begingroup "Upload Wine"
-mkdir -p ${PACKAGE_UPLOAD}
-cp ${INSTALLROOT}/${WINE_INSTALLATION}.tar.gz ${PACKAGE_UPLOAD}/
-endgroup
+        popd
+        endgroup
+    fi
+    if [[ -z ${SKIP_WINE32_BUILD} ]]; then
+        begingroup "Build wine32on64-${CROSS_OVER_VERSION}"
+        pushd ${BUILDROOT}/wine32on64-${CROSS_OVER_VERSION}
+        make -k -j$(sysctl -n hw.activecpu 2>/dev/null)
+        popd
+        endgroup
+    fi
+    if [[ -z ${SKIP_WINE32_INSTALL} ]]; then
+        begingroup "Install wine32on64-${CROSS_OVER_VERSION}"
+        pushd ${BUILDROOT}/wine32on64-${CROSS_OVER_VERSION}
+        make install-lib DESTDIR="${INSTALLROOT}/${WINE_INSTALLATION}"
+        popd
+        endgroup
+    fi
+fi
+if [[ -z ${SKIP_WINE_PACKAGE} ]]; then
+    begingroup "Tar Wine"
+    pushd ${INSTALLROOT}
+    tar -czvf ${WINE_INSTALLATION}.tar.gz ${WINE_INSTALLATION}
+    popd
+    endgroup
+fi
+if [[ -z ${SKIP_WINE_UPLOAD} ]]; then
+    begingroup "Upload Wine"
+    mkdir -p ${PACKAGE_UPLOAD}
+    cp ${INSTALLROOT}/${WINE_INSTALLATION}.tar.gz ${PACKAGE_UPLOAD}/
+    endgroup
+fi

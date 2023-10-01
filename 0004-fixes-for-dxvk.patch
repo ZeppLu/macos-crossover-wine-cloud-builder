@@ -1,0 +1,36 @@
+diff --git a/og/config.h b/og/config.h
+index f947272..537d0ef 100644
+--- a/og/config.h
++++ b/og/config.h
+@@ -2,7 +2,8 @@
+ 
+ #include <string>
+ #include <unordered_map>
+-
++#include <utility>
++#include <cstdint>
+ namespace dxvk {
+ 
+   /**
+diff --git a/og/util_bit.h b/og/util_bit.h
+index 7682ace..e7286aa 100644
+--- a/og/util_bit.h
++++ b/og/util_bit.h
+@@ -1,5 +1,5 @@
+ #pragma once
+-
++#include <cstdint>
+ #ifndef _MSC_VER
+ #if defined(__WINE__) && defined(__clang__)
+ #pragma push_macro("_WIN32")
+diff --git a/og/util_matrix.cpp b/og/util_matrix.cpp
+index 2c5e931..df9a3c4 100644
+--- a/og/util_matrix.cpp
++++ b/og/util_matrix.cpp
+@@ -1,5 +1,5 @@
+ #include "util_matrix.h"
+-
++#include <cstdint>
+ namespace dxvk {
+ 
+         Vector4& Matrix4::operator[](size_t index)       { return data[index]; }
