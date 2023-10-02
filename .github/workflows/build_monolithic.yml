@@ -124,7 +124,7 @@ jobs:
       ############ Configure 64bit Version ##############
 
       - name: Configure wine64 (specific to 22)
-        if: startsWith(matrix.CROSS_OVER_VERSION, '22') or startsWith(matrix.CROSS_OVER_VERSION, '23')
+        if: startsWith(matrix.CROSS_OVER_VERSION, '22') || startsWith(matrix.CROSS_OVER_VERSION, '23')
         uses: ./.github/actions/configure_wine
         with:
           winearch: "wine64"
@@ -151,7 +151,7 @@ jobs:
       ############ Configure 32on64bit Version ##############
 
       - name: Configure wine32on64 (specific to 22)
-        if: startsWith(matrix.CROSS_OVER_VERSION, '22') or startsWith(matrix.CROSS_OVER_VERSION, '23')
+        if: startsWith(matrix.CROSS_OVER_VERSION, '22') || startsWith(matrix.CROSS_OVER_VERSION, '23')
         uses: ./.github/actions/configure_wine
         with:
           winearch: "wine32on64"
