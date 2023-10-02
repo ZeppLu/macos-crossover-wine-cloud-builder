@@ -75,19 +75,13 @@ endgroup
 export CC="$(brew --prefix cx-llvm)/bin/clang"
 export CXX="${CC}++"
 export BISON="$(brew --prefix bison)/bin/bison"
-export LDFLAGS="-L/usr/local/opt/cx-llvm/lib"
-export CPPFLAGS="-I/usr/local/opt/cx-llvm/include"
-export LDFLAGS="-L/usr/local/opt/bison/lib"
-export CPATH="$(brew --prefix)/include"
-export PATH="/usr/local/opt/cx-llvm/bin:$PATH"
-export PATH="/usr/local/opt/bison/bin:$PATH"
 export PATH="/usr/local/opt/flex/bin:$PATH"
 # Xcode12 by default enables '-Werror,-Wimplicit-function-declaration' (49917738)
 # this causes wine(64) builds to fail so needs to be disabled.
 # https://developer.apple.com/documentation/xcode-release-notes/xcode-12-release-notes
 export CFLAGS="-g -O2 -Wno-error=implicit-function-declaration -Wno-deprecated-declarations"
 export LDFLAGS="-Wl,-headerpad_max_install_names"
-# export LDFLAGS="-Wl,-headerpad_max_install_names, -Wl,-no_compact_unwind"
+# export LDFLAGS="-Wl,-headerpad_max_install_names, -Wl,-no_compact_unwind" # fails dxvk build
 
 # avoid weird linker errors with Xcode 10 and later
 export MACOSX_DEPLOYMENT_TARGET=10.14
@@ -112,12 +106,16 @@ if [[ -z ${SKIP_DOWNLOAD_SOURCES} ]]; then
     endgroup
 fi
 
-# begingroup "Patch Add missing distversion.h"
-# # Patch provided by Josh Dubois, CrossOver product manager, CodeWeavers.
-# pushd sources/wine
-# patch -p1 <${GITHUB_WORKSPACE}/distversion.patch
-# popd
-# endgroup
+begingroup "Patch Add missing distversion.h"
+# Patch provided by Josh Dubois, CrossOver product manager, CodeWeavers.
+pushd sources/wine
+if [[ ${CX_MAJOR} == 23 ]]; then
+    patch -p1 <${GITHUB_WORKSPACE}/distversion23.patch
+else
+    patch -p1 <${GITHUB_WORKSPACE}/distversion.patch
+fi
+popd
+endgroup
 
 if [[ ${CROSS_OVER_VERSION} == 22.0.0 ]]; then
     pushd sources/wine
@@ -175,6 +173,7 @@ if [[ -z ${SKIP_DXVK} ]]; then
         fi
     fi
 fi
+export LDFLAGS="-Wl,-headerpad_max_install_names, -Wl,-no_compact_unwind" # -no_compact_unwind error for dxvk
 if [[ -z ${SKIP_WINE64} ]]; then
     if [[ -z ${SKIP_WINE64_CONFIGURE} ]]; then
         begingroup "Configure wine64-${CROSS_OVER_VERSION}"
@@ -238,29 +237,16 @@ if [[ -z ${SKIP_WINE32} ]]; then
             --enable-win32on64 \
             --disable-winedbg \
             --with-wine64=${BUILDROOT}/wine64-${CROSS_OVER_VERSION} \
-            --with-coreaudio \
-            --with-cups \
-            --without-fontconfig \
-            --with-freetype \
-            --disable-tests \
-            --without-alsa \
-            --without-capi \
-            --without-dbus \
-            --without-gettext \
-            --without-gettextpo \
-            --without-gsm \
-            --without-inotify \
-            --without-krb5 \
-            --without-netapi \
+            --without-cms \
             --without-openal \
-            --without-oss \
-            --without-pulse \
-            --without-quicktime \
+            --without-gstreamer \
+            --without-gphoto \
+            --without-krb5 \
             --without-sane \
-            --without-udev \
-            --without-usb \
-            --without-v4l2 \
-            --without-x
+            --without-vulkan \
+            --disable-vulkan_1 \
+            --disable-winedbg \
+            --disable-winevulkan
 
         popd
         endgroup
