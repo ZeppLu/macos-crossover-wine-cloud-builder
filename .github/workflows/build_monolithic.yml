@@ -151,7 +151,7 @@ jobs:
       ############ Configure 32on64bit Version ##############
 
       - name: Configure wine32on64 (specific to 22)
-        if: startsWith(matrix.CROSS_OVER_VERSION, '22') || startsWith(matrix.CROSS_OVER_VERSION, '23')
+        if: startsWith(matrix.CROSS_OVER_VERSION, '22')
         uses: ./.github/actions/configure_wine
         with:
           winearch: "wine32on64"
@@ -171,6 +171,7 @@ jobs:
       ############ Build 32on64bit Version ##############
 
       - name: Build wine32on64
+        if: ${{ matrix.CROSS_OVER_VERSION < '23' }}
         uses: ./.github/actions/make
         with:
           build-dir: "${{ env.BUILDROOT }}/wine32on64"
@@ -178,6 +179,7 @@ jobs:
       ############ Install wine ##############
 
       - name: Install wine32on64
+        if: ${{ matrix.CROSS_OVER_VERSION < '23' }}
         uses: ./.github/actions/install
         with:
           build-dir: "${{ env.BUILDROOT }}/wine32on64"
