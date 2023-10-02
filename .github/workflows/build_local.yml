@@ -26,7 +26,13 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Run build_local.sh
+        if: ${{ matrix.CROSS_OVER_VERSION < '23' }}
         run: ./build_local.sh
+      - name: Run build_local.sh
+        if: startsWith(matrix.CROSS_OVER_VERSION, '23')
+        run: ./build_local.sh
+        env:
+          SKIP_WINE32: "true"
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
