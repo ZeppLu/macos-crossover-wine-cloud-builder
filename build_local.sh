@@ -145,7 +145,11 @@ if [[ -z ${SKIP_DXVK} ]]; then
             pushd sources/dxvk
             patch -p1 <${GITHUB_WORKSPACE}/0001-build-macOS-Fix-up-for-macOS.patch
             # patch -p1 <${GITHUB_WORKSPACE}/0002-fix-d3d11-header-for-MinGW-9-1883.patch # already applied
-            patch -p1 <${GITHUB_WORKSPACE}/0003-fixes-for-mingw-gcc-12.patch
+            if [[ ${CX_MAJOR} -eq 23 ]]; then
+                patch -p1 <${GITHUB_WORKSPACE}/0003-fixes-for-mingw-gcc-12-crossover23.patch
+            else
+                patch -p1 <${GITHUB_WORKSPACE}/0003-fixes-for-mingw-gcc-12.patch
+            fi
             patch -p1 <${GITHUB_WORKSPACE}/0004-fixes-for-dxvk.patch
             popd
             endgroup
