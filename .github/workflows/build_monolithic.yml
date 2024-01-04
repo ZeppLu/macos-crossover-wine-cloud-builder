@@ -18,9 +18,11 @@ env:
     INSTALLROOT: ${{ github.workspace }}/install
     TOOLS_INSTALLATION: build-tools-cx
     MOLTENVK_DXVK_INSTALLATION: moltenvk-dxvk
+    BUILD_MOLTENVK: 0
 
 jobs:
   moltenVK_DXVK:
+    if: ${{ env.BUILD_MOLTENVK }} == 1
     runs-on:  macos-latest
     env:
       # crossover source code to be downloaded
@@ -70,7 +72,7 @@ jobs:
           path: ${{ env.INSTALLROOT }}/${{ env.MOLTENVK_DXVK_INSTALLATION }}.tar.gz
 
   wine-crossover:
-    needs: [moltenVK_DXVK]
+    # needs: [moltenVK_DXVK]
     strategy:
       fail-fast: false
       matrix:
@@ -127,12 +129,14 @@ jobs:
           echo "$(brew --prefix flex)/bin"    >> $GITHUB_PATH
 
       - name: Download MoltenVK / DXVK (from previous job)
+        if: ${{ env.BUILD_MOLTENVK }} == 1
         uses: actions/download-artifact@v3
         with:
           name: ${{ env.MOLTENVK_DXVK_INSTALLATION }}
           path: ${{ env.INSTALLROOT }}
 
       - name: Unpack MoltenVK / DXVK
+        if: ${{ env.BUILD_MOLTENVK }} == 1
         run: |
           set -x
           mkdir -p ${{ env.INSTALLROOT }}/${{ env.WINE_INSTALLATION }}
@@ -280,6 +284,7 @@ jobs:
           path: ${{ env.INSTALLROOT }}/${{ env.WINE_INSTALLATION }}.tar.gz
 
   wine-crossover-local:
+    if: ${{ env.BUILD_MOLTENVK }} == 1
     strategy:
       fail-fast: false
       matrix:
